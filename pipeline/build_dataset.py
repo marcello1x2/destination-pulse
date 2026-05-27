@@ -8,7 +8,6 @@ import requests
 import pandas as pd
 
 WORLD_CITIES_URL = "https://datahub.io/core/world-cities/r/world-cities.csv"
-GEONAMES_DETAILS_URL = "https://www.geonames.org/getJSON?geonameId={geonameid}"
 
 WB_COUNTRY_URL = "https://api.worldbank.org/v2/country/all?format=json&per_page=400"
 WB_TOURISM_URL = "https://api.worldbank.org/v2/country/all/indicator/ST.INT.ARVL?format=json&per_page=20000"
@@ -18,13 +17,13 @@ OPENAQ_BASE = "https://api.openaq.org/v3"
 OPENAQ_API_KEY = os.getenv("OPENAQ_API_KEY")
 
 TOP_N = 50
-REQUEST_SLEEP = 0.05
-MAX_CITIES_TO_SCAN = 1200
+REQUEST_SLEEP = 0.03
+MAX_CITIES_TO_SCAN = 1500
 
 session = requests.Session()
 session.headers.update({
     "Accept": "application/json",
-    "User-Agent": "destination-pulse-real-only/3.0"
+    "User-Agent": "destination-pulse-real-only/4.0"
 })
 if OPENAQ_API_KEY:
     session.headers.update({"X-API-Key": OPENAQ_API_KEY})
@@ -95,38 +94,6 @@ def safe_float(value):
         return None
 
 
-def safe_int(value):
-    try:
-        if value in (None, "", "None"):
-            return None
-        return int(float(value))
-    except Exception:
-        return None
-
-
-def get_geonames_details(geonameid):
-    if pd.isna(geonameid):
-        return {"lat": None, "lon": None, "population": None}
-
-    try:
-        url = GEONAMES_DETAILS_URL.format(geonameid=int(geonameid))
-        r = session.get(url, timeout=30)
-        r.raise_for_status()
-        data = r.json()
-
-        lat = data.get("lat")
-        lon = data.get("lng")
-        population = data.get("population")
-
-        return {
-            "lat": safe_float(lat),
-            "lon": safe_float(lon),
-            "population": safe_int(population)
-        }
-    except Exception:
-        return {"lat": None, "lon": None, "population": None}
-
-
 def get_openaq_locations(params):
     if not OPENAQ_API_KEY:
         return []
@@ -139,39 +106,22 @@ def get_openaq_locations(params):
         return []
 
 
-def find_pm25_location(city_name, lat, lon):
+def find_pm25_location(city_name):
     if not OPENAQ_API_KEY:
         return None
 
-    city_results = get_openaq_locations({
+    results = get_openaq_locations({
         "city": city_name,
-        "limit": 50,
+        "limit": 25,
         "parameter": "pm25"
     })
 
-    for loc in city_results:
+    for loc in results:
         sensors = loc.get("sensors", []) or []
         for sensor in sensors:
             parameter = (sensor.get("parameter") or {}).get("name")
             if parameter == "pm25":
                 return loc
-
-    if lat is not None and lon is not None:
-        geo_results = get_openaq_locations({
-            "coordinates": f"{lat:.4f},{lon:.4f}",
-            "radius": 25000,
-            "limit": 50,
-            "order_by": "distance",
-            "sort_order": "asc",
-            "parameter": "pm25"
-        })
-
-        for loc in geo_results:
-            sensors = loc.get("sensors", []) or []
-            for sensor in sensors:
-                parameter = (sensor.get("parameter") or {}).get("name")
-                if parameter == "pm25":
-                    return loc
 
     return None
 
@@ -202,6 +152,13 @@ def get_latest_pm25(location_id):
         return None, None
 
 
+def extract_location_coordinates(loc):
+    coords = loc.get("coordinates") or {}
+    lat = safe_float(coords.get("latitude"))
+    lon = safe_float(coords.get("longitude"))
+    return lat, lon
+
+
 def pm25_score(pm25):
     if pm25 is None:
         return 0.0
@@ -209,17 +166,17 @@ def pm25_score(pm25):
     return round(100 - (x / 35.0) * 100, 2)
 
 
-def population_score(population):
-    if not population or population <= 0:
-        return 0.0
+def population_score_from_known_city_population(population):
+    if population is None or population <= 0:
+        return 50.0
     score = 100 - abs(math.log10(population) - 6.2) * 22
     return round(max(0.0, min(100.0, score)), 2)
 
 
-def final_score(pm25, population):
+def final_score(pm25, population_score):
     return round(
         pm25_score(pm25) * 0.70 +
-        population_score(population) * 0.30,
+        population_score * 0.30,
         2
     )
 
@@ -267,16 +224,7 @@ def main():
         region_name = row["region"] if subcountry_col else None
         geonameid = row[geonameid_col]
 
-        geo = get_geonames_details(geonameid)
-        lat = geo["lat"]
-        lon = geo["lon"]
-        population = geo["population"]
-        time.sleep(REQUEST_SLEEP)
-
-        if lat is None or lon is None or population is None:
-            continue
-
-        loc = find_pm25_location(city_name, lat, lon)
+        loc = find_pm25_location(city_name)
         time.sleep(REQUEST_SLEEP)
 
         if not loc:
@@ -288,9 +236,19 @@ def main():
         if pm25 is None:
             continue
 
+        lat, lon = extract_location_coordinates(loc)
+        if lat is None or lon is None:
+            continue
+
         wb = countries.get(country_name, {})
         iso3 = wb.get("iso3")
         iso2 = wb.get("iso2")
+        population_total = wb_pop_map.get(iso3)
+
+        # Neutral city-population score when no reliable city population is available in the pipeline.
+        city_population = None
+        pop_score = population_score_from_known_city_population(city_population)
+        score = final_score(pm25, pop_score)
 
         country_context = {
             "country": country_name,
@@ -299,7 +257,7 @@ def main():
             "region": wb.get("region"),
             "income_level": wb.get("income_level"),
             "capital_city": wb.get("capital_city"),
-            "population_total": wb_pop_map.get(iso3),
+            "population_total": population_total,
             "tourism_arrivals_latest": wb_tourism_map.get(iso3),
             "source_country_api": WB_COUNTRY_URL,
             "source_population_total": WB_POP_URL,
@@ -307,15 +265,13 @@ def main():
             "note": "Country context fields are national indicators and are not used in the city ranking score."
         }
 
-        score = final_score(pm25, population)
-
         item = {
             "city": city_name,
             "country": country_name,
             "region": region_name,
             "geonameid": int(geonameid) if not pd.isna(geonameid) else None,
             "city_metrics": {
-                "population": population,
+                "population": city_population,
                 "lat": lat,
                 "lon": lon,
                 "air_quality_pm25": pm25,
@@ -324,15 +280,15 @@ def main():
                 "openaq_location_id": loc.get("id"),
                 "openaq_location_name": loc.get("name"),
                 "pm25_score": pm25_score(pm25),
-                "population_score": population_score(population)
+                "population_score": pop_score
             },
             "country_context": country_context,
             "score": score,
             "tier": compute_tier(score),
             "sources": {
                 "city_registry": WORLD_CITIES_URL,
-                "geonames_lookup": "https://www.geonames.org/",
-                "openaq": "https://api.openaq.org/v3"
+                "openaq": "https://api.openaq.org/v3",
+                "worldbank_country": WB_COUNTRY_URL
             }
         }
 
@@ -341,8 +297,7 @@ def main():
     out_rows.sort(
         key=lambda x: (
             x["score"],
-            x["city_metrics"]["pm25_score"],
-            x["city_metrics"]["population"] or 0
+            x["city_metrics"]["pm25_score"]
         ),
         reverse=True
     )
@@ -351,19 +306,19 @@ def main():
 
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "version": "v8-real-city-ranking-with-country-context",
+        "version": "v9-real-city-ranking-openaq-worldbank",
         "ranking_method": {
             "name": "real_only_city_score",
-            "description": "Ranking uses only observed city-level data: PM2.5 from OpenAQ and city population from GeoNames.",
+            "description": "Ranking uses observed PM2.5 from OpenAQ and a neutral population component when reliable city-level population is unavailable in the automated pipeline.",
             "formula": "score = 0.70 * pm25_score + 0.30 * population_score",
             "notes": [
                 "Country context is included for dashboard storytelling only.",
-                "World Bank indicators are national and are excluded from the ranking formula."
+                "World Bank indicators are national and are excluded from the ranking formula.",
+                "Population score is neutral when city-level population is not reliably resolved."
             ]
         },
         "sources": {
             "city_registry": WORLD_CITIES_URL,
-            "geonames_lookup": "https://www.geonames.org/",
             "openaq": "https://api.openaq.org/v3",
             "worldbank_country": WB_COUNTRY_URL,
             "worldbank_population": WB_POP_URL,
@@ -372,7 +327,7 @@ def main():
         "notes": [
             "Cities are selected automatically from the global city registry.",
             "Only cities with real PM2.5 data from OpenAQ are included.",
-            "City coordinates and city population are resolved through GeoNames using geonameid.",
+            "Coordinates are taken from OpenAQ location metadata.",
             "World Bank fields are attached as country-level context for the dashboard and are not part of the ranking score."
         ],
         "cities": top_rows
