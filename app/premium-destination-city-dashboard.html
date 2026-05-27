@@ -187,107 +187,165 @@
   </div>
 
 <script>
-const cityData = [
-  {city:'Kyoto',country:'Japan',segment:'Urban culture',tier:'Iconic',tourism:93,income:87,premium:96,pop:1460000},
-  {city:'Florence',country:'Italy',segment:'Urban culture',tier:'Iconic',tourism:91,income:84,premium:95,pop:382000},
-  {city:'Barcelona',country:'Spain',segment:'Urban culture',tier:'Iconic',tourism:95,income:81,premium:90,pop:1620000},
-  {city:'Lisbon',country:'Portugal',segment:'Urban culture',tier:'Rising',tourism:88,income:75,premium:86,pop:545000},
-  {city:'Dubrovnik',country:'Croatia',segment:'Leisure / resort',tier:'Premium',tourism:84,income:68,premium:91,pop:41000},
-  {city:'Palma',country:'Spain',segment:'Leisure / resort',tier:'Premium',tourism:86,income:81,premium:89,pop:423000},
-  {city:'Como',country:'Italy',segment:'Leisure / resort',tier:'Premium',tourism:82,income:84,premium:94,pop:84000},
-  {city:'Lecco',country:'Italy',segment:'Leisure / resort',tier:'Curated',tourism:76,income:84,premium:86,pop:48000},
-  {city:'Lucerne',country:'Switzerland',segment:'Leisure / resort',tier:'Iconic',tourism:83,income:96,premium:95,pop:82000},
-  {city:'Salzburg',country:'Austria',segment:'Urban culture',tier:'Premium',tourism:85,income:88,premium:89,pop:157000},
-  {city:'Bordeaux',country:'France',segment:'Urban culture',tier:'Premium',tourism:82,income:83,premium:88,pop:257000},
-  {city:'San Sebastian',country:'Spain',segment:'Leisure / resort',tier:'Premium',tourism:80,income:81,premium:92,pop:188000},
-  {city:'Nice',country:'France',segment:'Leisure / resort',tier:'Premium',tourism:87,income:83,premium:91,pop:348000},
-  {city:'Copenhagen',country:'Denmark',segment:'Urban culture',tier:'Premium',tourism:81,income:94,premium:87,pop:654000},
-  {city:'Amsterdam',country:'Netherlands',segment:'Urban culture',tier:'Iconic',tourism:94,income:90,premium:88,pop:921000},
-  {city:'Reykjavik',country:'Iceland',segment:'Leisure / resort',tier:'Rising',tourism:79,income:92,premium:90,pop:139000},
-  {city:'Milan',country:'Italy',segment:'Urban culture',tier:'Premium',tourism:83,income:84,premium:84,pop:1370000},
-  {city:'Seville',country:'Spain',segment:'Urban culture',tier:'Premium',tourism:82,income:81,premium:84,pop:684000},
-  {city:'Queenstown',country:'New Zealand',segment:'Leisure / resort',tier:'Curated',tourism:78,income:88,premium:93,pop:29000},
-  {city:'Singapore',country:'Singapore',segment:'Urban culture',tier:'Iconic',tourism:89,income:99,premium:92,pop:5630000}
-].map(d=>({
-  ...d,
-  popScore: Math.max(55, 100 - Math.abs(Math.log10(d.pop) - 5.5) * 18),
-})).map(d=>({
-  ...d,
-  score: Math.round(d.tourism*0.38 + d.income*0.24 + d.premium*0.28 + d.popScore*0.10)
-})).sort((a,b)=>b.score-a.score);
-
-const tbody = document.querySelector('#citiesTable tbody');
-const rankList = document.querySelector('#rankList');
-const top20 = cityData.slice(0,20);
-const top8 = cityData.slice(0,8);
-
 function badgeClass(tier){
-  if(tier==='Iconic') return 'badge b-purple';
-  if(tier==='Premium') return 'badge b-green';
+  if(tier === 'Iconic') return 'badge b-purple';
+  if(tier === 'Premium') return 'badge b-green';
   return 'badge b-orange';
 }
 
-for (const row of top8){
-  const tr = document.createElement('tr');
-  tr.innerHTML = `<td><strong>${row.city}</strong><div style="font-size:12px;color:var(--muted);margin-top:4px">${row.segment}</div></td>
-  <td>${row.country}</td>
-  <td><span class="${badgeClass(row.tier)}">${row.tier}</span></td>
-  <td><strong>${row.score}</strong></td>
-  <td>${row.tourism}</td>`;
-  tbody.appendChild(tr);
+function renderDashboard(cityData){
+  const tbody = document.querySelector('#citiesTable tbody');
+  const rankList = document.querySelector('#rankList');
+  const top20 = cityData.slice(0, 20);
+  const top8 = cityData.slice(0, 8);
+
+  tbody.innerHTML = '';
+  rankList.innerHTML = '';
+
+  for (const row of top8){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <strong>${row.city}</strong>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">${row.segment ?? ''}</div>
+      </td>
+      <td>${row.country ?? ''}</td>
+      <td><span class="${badgeClass(row.tier)}">${row.tier ?? ''}</span></td>
+      <td><strong>${row.score ?? ''}</strong></td>
+      <td>${row.tourism ?? ''}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  cityData.slice(0, 5).forEach((row, i) => {
+    const el = document.createElement('div');
+    el.className = 'rank-item';
+    el.innerHTML = `
+      <div class="rank-num">${i + 1}</div>
+      <div class="rank-meta">
+        <strong>${row.city}</strong>
+        <span>${row.country ?? ''} · ${row.segment ?? ''}</span>
+      </div>
+      <div class="score">${row.score ?? ''}</div>
+    `;
+    rankList.appendChild(el);
+  });
+
+  document.getElementById('statAvg').textContent =
+    Math.round(cityData.reduce((a, b) => a + (b.score || 0), 0) / Math.max(cityData.length, 1));
+
+  document.getElementById('statCities').textContent = cityData.length;
+  document.getElementById('statCountries').textContent = new Set(cityData.map(d => d.country)).size;
+  document.getElementById('leisureCount').textContent = cityData.filter(d => (d.segment || '').includes('Leisure')).length;
+  document.getElementById('urbanCount').textContent = cityData.filter(d => (d.segment || '').includes('Urban')).length;
+
+  const ctx = document.getElementById('scoreChart');
+
+  if (window.scoreChartInstance) {
+    window.scoreChartInstance.destroy();
+  }
+
+  window.scoreChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: top20.map(d => d.city),
+      datasets: [{
+        label: 'City score',
+        data: top20.map(d => d.score),
+        backgroundColor: top20.map((d, i) => i < 5 ? 'rgba(155,132,242,.88)' : 'rgba(199,184,255,.55)'),
+        borderRadius: 12,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(30,27,40,.92)',
+          padding: 12,
+          titleFont: { weight: '700' }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: getComputedStyle(document.documentElement).getPropertyValue('--muted').trim(),
+            maxRotation: 0,
+            minRotation: 0,
+            font: { size: 11 }
+          }
+        },
+        y: {
+          beginAtZero: true,
+          max: 100,
+          grid: { color: 'rgba(120,112,136,.12)' },
+          ticks: {
+            color: getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()
+          }
+        }
+      }
+    }
+  });
 }
 
-cityData.slice(0,5).forEach((row,i)=>{
-  const el = document.createElement('div');
-  el.className='rank-item';
-  el.innerHTML = `<div class="rank-num">${i+1}</div><div class="rank-meta"><strong>${row.city}</strong><span>${row.country} · ${row.segment}</span></div><div class="score">${row.score}</div>`;
-  rankList.appendChild(el);
-});
+async function loadDashboardData(){
+  try {
+    const res = await fetch('../data/cities-live.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const payload = await res.json();
+    const cityData = (payload.cities || []).slice().sort((a, b) => (b.score || 0) - (a.score || 0));
+    renderDashboard(cityData);
+  } catch (err) {
+    console.error('Errore caricamento dataset:', err);
 
-document.getElementById('statAvg').textContent = Math.round(cityData.reduce((a,b)=>a+b.score,0)/cityData.length);
-document.getElementById('statCities').textContent = cityData.length;
-document.getElementById('statCountries').textContent = new Set(cityData.map(d=>d.country)).size;
-document.getElementById('leisureCount').textContent = cityData.filter(d=>d.segment.includes('Leisure')).length;
-document.getElementById('urbanCount').textContent = cityData.filter(d=>d.segment.includes('Urban')).length;
+    const tbody = document.querySelector('#citiesTable tbody');
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="padding:18px;">
+          Impossibile caricare il dataset JSON.
+        </td>
+      </tr>
+    `;
 
-const ctx = document.getElementById('scoreChart');
-new Chart(ctx, {
-  type:'bar',
-  data:{
-    labels: top20.map(d=>d.city),
-    datasets:[{
-      label:'City score',
-      data: top20.map(d=>d.score),
-      backgroundColor: top20.map((d,i)=> i<5 ? 'rgba(155,132,242,.88)' : 'rgba(199,184,255,.55)'),
-      borderRadius: 12,
-      borderSkipped:false
-    }]
-  },
-  options:{
-    responsive:true,
-    maintainAspectRatio:false,
-    plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(30,27,40,.92)',padding:12,titleFont:{weight:'700'}}},
-    scales:{
-      x:{grid:{display:false},ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim(),maxRotation:0,minRotation:0,font:{size:11}}},
-      y:{beginAtZero:true,max:100,grid:{color:'rgba(120,112,136,.12)'},ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()}}
-    }
+    const rankList = document.querySelector('#rankList');
+    rankList.innerHTML = `
+      <div class="rank-item">
+        <div class="rank-num">!</div>
+        <div class="rank-meta">
+          <strong>Dataset non disponibile</strong>
+          <span>Controlla path, commit e contenuto del file JSON.</span>
+        </div>
+        <div class="score">-</div>
+      </div>
+    `;
   }
-});
+}
 
 (function(){
-  const t=document.querySelector('[data-theme-toggle]');
-  const r=document.documentElement;
-  let d=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
-  r.setAttribute('data-theme',d);
-  t.addEventListener('click',()=>{d=d==='dark'?'light':'dark';r.setAttribute('data-theme',d);});
+  const t = document.querySelector('[data-theme-toggle]');
+  const r = document.documentElement;
+  let d = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+  r.setAttribute('data-theme', d);
+  t.addEventListener('click', () => {
+    d = d === 'dark' ? 'light' : 'dark';
+    r.setAttribute('data-theme', d);
+  });
 })();
 
-document.getElementById('refreshBtn').addEventListener('click',()=>{
+document.getElementById('refreshBtn').addEventListener('click', () => {
   const btn = document.getElementById('refreshBtn');
   const old = btn.textContent;
   btn.textContent = 'Dataset synced';
-  setTimeout(()=>btn.textContent=old,1400);
+  loadDashboardData().finally(() => {
+    setTimeout(() => btn.textContent = old, 1400);
+  });
 });
+
+loadDashboardData();
 </script>
+
 </body>
 </html>
