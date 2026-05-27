@@ -11,6 +11,8 @@ permissions:
 jobs:
   build-data:
     runs-on: ubuntu-latest
+    env:
+      OPENAQ_API_KEY: ${{ secrets.OPENAQ_API_KEY }}
 
     steps:
       - name: Checkout
@@ -27,8 +29,6 @@ jobs:
           pip install pandas requests
 
       - name: Build dataset
-        env:
-          OPENAQ_API_KEY: ${{ secrets.OPENAQ_API_KEY }}
         run: python pipeline/build_dataset.py
 
       - name: Commit updated dataset
