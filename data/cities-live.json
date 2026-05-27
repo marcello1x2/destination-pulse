@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-27T14:13:49.402514+00:00",
+  "generated_at": "2026-05-27T14:47:46.277503+00:00",
   "version": "v8-real-city-ranking-with-country-context",
   "ranking_method": {
     "name": "real_only_city_score",
@@ -19,6 +19,7 @@
     "worldbank_tourism": "https://api.worldbank.org/v2/country/all/indicator/ST.INT.ARVL?format=json&per_page=20000"
   },
   "notes": [
+    "Cities are selected automatically from the global city registry.",
     "Only cities with real PM2.5 data from OpenAQ are included.",
     "City coordinates and city population are resolved through GeoNames using geonameid.",
     "World Bank fields are attached as country-level context for the dashboard and are not part of the ranking score."
