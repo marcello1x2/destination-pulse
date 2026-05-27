@@ -17,13 +17,14 @@ WB_POP_URL = "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?for
 OPENAQ_BASE = "https://api.openaq.org/v3"
 OPENAQ_API_KEY = os.getenv("OPENAQ_API_KEY")
 
-TOP_N = 20
+TOP_N = 50
 REQUEST_SLEEP = 0.05
+MAX_CITIES_TO_SCAN = 1200
 
 session = requests.Session()
 session.headers.update({
     "Accept": "application/json",
-    "User-Agent": "destination-pulse-real-only/2.0"
+    "User-Agent": "destination-pulse-real-only/3.0"
 })
 if OPENAQ_API_KEY:
     session.headers.update({"X-API-Key": OPENAQ_API_KEY})
@@ -85,6 +86,24 @@ def clean_region(value):
     return text
 
 
+def safe_float(value):
+    try:
+        if value in (None, "", "None"):
+            return None
+        return float(value)
+    except Exception:
+        return None
+
+
+def safe_int(value):
+    try:
+        if value in (None, "", "None"):
+            return None
+        return int(float(value))
+    except Exception:
+        return None
+
+
 def get_geonames_details(geonameid):
     if pd.isna(geonameid):
         return {"lat": None, "lon": None, "population": None}
@@ -100,9 +119,9 @@ def get_geonames_details(geonameid):
         population = data.get("population")
 
         return {
-            "lat": float(lat) if lat not in (None, "") else None,
-            "lon": float(lon) if lon not in (None, "") else None,
-            "population": int(population) if population not in (None, "", "0") else None
+            "lat": safe_float(lat),
+            "lon": safe_float(lon),
+            "population": safe_int(population)
         }
     except Exception:
         return {"lat": None, "lon": None, "population": None}
@@ -126,7 +145,8 @@ def find_pm25_location(city_name, lat, lon):
 
     city_results = get_openaq_locations({
         "city": city_name,
-        "limit": 50
+        "limit": 50,
+        "parameter": "pm25"
     })
 
     for loc in city_results:
@@ -142,7 +162,8 @@ def find_pm25_location(city_name, lat, lon):
             "radius": 25000,
             "limit": 50,
             "order_by": "distance",
-            "sort_order": "asc"
+            "sort_order": "asc",
+            "parameter": "pm25"
         })
 
         for loc in geo_results:
@@ -160,7 +181,11 @@ def get_latest_pm25(location_id):
         return None, None
 
     try:
-        r = session.get(f"{OPENAQ_BASE}/locations/{location_id}/latest", params={"limit": 100}, timeout=30)
+        r = session.get(
+            f"{OPENAQ_BASE}/locations/{location_id}/latest",
+            params={"limit": 100},
+            timeout=30
+        )
         if r.status_code >= 400:
             return None, None
 
@@ -178,6 +203,8 @@ def get_latest_pm25(location_id):
 
 
 def pm25_score(pm25):
+    if pm25 is None:
+        return 0.0
     x = max(0.0, min(float(pm25), 35.0))
     return round(100 - (x / 35.0) * 100, 2)
 
@@ -226,13 +253,15 @@ def main():
         dedupe_cols.append("region")
     cities = cities.drop_duplicates(subset=dedupe_cols).copy()
 
+    candidate_cities = cities.head(MAX_CITIES_TO_SCAN).copy()
+
     countries = country_lookup()
     wb_pop_map = latest_values(WB_POP_URL)
     wb_tourism_map = latest_values(WB_TOURISM_URL)
 
     out_rows = []
 
-    for _, row in cities.iterrows():
+    for _, row in candidate_cities.iterrows():
         city_name = row["city"]
         country_name = row["country"]
         region_name = row["region"] if subcountry_col else None
@@ -243,6 +272,9 @@ def main():
         lon = geo["lon"]
         population = geo["population"]
         time.sleep(REQUEST_SLEEP)
+
+        if lat is None or lon is None or population is None:
+            continue
 
         loc = find_pm25_location(city_name, lat, lon)
         time.sleep(REQUEST_SLEEP)
@@ -338,6 +370,7 @@ def main():
             "worldbank_tourism": WB_TOURISM_URL
         },
         "notes": [
+            "Cities are selected automatically from the global city registry.",
             "Only cities with real PM2.5 data from OpenAQ are included.",
             "City coordinates and city population are resolved through GeoNames using geonameid.",
             "World Bank fields are attached as country-level context for the dashboard and are not part of the ranking score."
@@ -347,9 +380,11 @@ def main():
 
     root = Path(__file__).resolve().parents[1]
     out = root / "data" / "cities-live.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(f"Wrote {out}")
+    print(f"Candidate cities scanned: {len(candidate_cities)}")
     print(f"Cities with real PM2.5 found: {len(out_rows)}")
     print(f"Top cities kept: {len(top_rows)}")
     print(f"OpenAQ enabled: {'yes' if OPENAQ_API_KEY else 'no'}")
