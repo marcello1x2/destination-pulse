@@ -3,38 +3,64 @@ name: Update city dataset
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 6 * * 1'
+    - cron: "30 4 * * *"
 
 permissions:
   contents: write
 
 jobs:
-  build-data:
+  build-dataset:
     runs-on: ubuntu-latest
+
     env:
       OPENAQ_API_KEY: ${{ secrets.OPENAQ_API_KEY }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas requests
+          pip install requests pandas
 
-      - name: Build dataset
-        run: python pipeline/build_dataset.py
+      - name: Generate cities-live.json
+        run: |
+          python pipeline/build_dataset.py
+
+      - name: Show output preview
+        run: |
+          ls -lah data
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = Path("data/cities-live.json")
+          if not p.exists():
+              raise SystemExit("data/cities-live.json not found")
+
+          payload = json.loads(p.read_text(encoding="utf-8"))
+          print("generated_at:", payload.get("generated_at"))
+          print("version:", payload.get("version"))
+          print("cities:", len(payload.get("cities", [])))
+
+          if payload.get("cities"):
+              first = payload["cities"][0]
+              print("top city:", first.get("city"), "-", first.get("country"), "- score:", first.get("score"))
+          PY
 
       - name: Commit updated dataset
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/cities-live.json
-          git diff --cached --quiet || git commit -m "Update city dataset"
+          git diff --cached --quiet || git commit -m "Update cities-live.json"
+
+      - name: Push changes
+        run: |
           git push
