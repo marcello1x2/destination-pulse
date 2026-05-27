@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-05-27T14:47:46.277503+00:00",
-  "version": "v8-real-city-ranking-with-country-context",
+  "generated_at": "2026-05-27T15:18:08.646570+00:00",
+  "version": "v9-real-city-ranking-openaq-worldbank",
   "ranking_method": {
     "name": "real_only_city_score",
-    "description": "Ranking uses only observed city-level data: PM2.5 from OpenAQ and city population from GeoNames.",
+    "description": "Ranking uses observed PM2.5 from OpenAQ and a neutral population component when reliable city-level population is unavailable in the automated pipeline.",
     "formula": "score = 0.70 * pm25_score + 0.30 * population_score",
     "notes": [
       "Country context is included for dashboard storytelling only.",
-      "World Bank indicators are national and are excluded from the ranking formula."
+      "World Bank indicators are national and are excluded from the ranking formula.",
+      "Population score is neutral when city-level population is not reliably resolved."
     ]
   },
   "sources": {
     "city_registry": "https://datahub.io/core/world-cities/r/world-cities.csv",
-    "geonames_lookup": "https://www.geonames.org/",
     "openaq": "https://api.openaq.org/v3",
     "worldbank_country": "https://api.worldbank.org/v2/country/all?format=json&per_page=400",
     "worldbank_population": "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?format=json&per_page=20000",
@@ -21,7 +21,7 @@
   "notes": [
     "Cities are selected automatically from the global city registry.",
     "Only cities with real PM2.5 data from OpenAQ are included.",
-    "City coordinates and city population are resolved through GeoNames using geonameid.",
+    "Coordinates are taken from OpenAQ location metadata.",
     "World Bank fields are attached as country-level context for the dashboard and are not part of the ranking score."
   ],
   "cities": []
