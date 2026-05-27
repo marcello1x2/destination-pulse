@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Premium Destination City Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+  <style>
+    :root,[data-theme="light"]{
+      --bg:#f1eeef;--bg-2:#ece8ea;--surface:rgba(252,250,253,.86);--surface-2:#f7f3f8;--surface-3:#f0ecf5;
+      --border:rgba(72,63,88,.10);--border-strong:rgba(72,63,88,.16);--text:#272430;--muted:#746d82;--faint:#a79fb5;
+      --primary:#9b84f2;--primary-2:#c7b8ff;--blush:#f1c8d8;--ice:#d8edf8;--success:#78b84a;--warning:#ff7a45;
+      --radius:24px;--radius-sm:16px;--shadow:0 18px 50px rgba(118,104,151,.10);--shadow-sm:0 10px 26px rgba(118,104,151,.08);
+    }
+    [data-theme="dark"]{
+      --bg:#191821;--bg-2:#201f2b;--surface:rgba(33,31,44,.88);--surface-2:#292636;--surface-3:#322e43;
+      --border:rgba(215,206,237,.10);--border-strong:rgba(215,206,237,.14);--text:#f1eff8;--muted:#b4adc5;--faint:#8f88a2;
+      --primary:#b29cff;--primary-2:#8f75ea;--blush:#6d4553;--ice:#28495b;--success:#94d45d;--warning:#ff9869;
+      --shadow:0 24px 60px rgba(0,0,0,.32);--shadow-sm:0 14px 28px rgba(0,0,0,.24);
+    }
+    *{box-sizing:border-box} html,body{margin:0} body{font-family:'Inter',system-ui,sans-serif;background:linear-gradient(180deg,var(--bg),var(--bg-2));color:var(--text);min-height:100vh}
+    .app{max-width:1480px;margin:0 auto;padding:28px}
+    .shell{background:linear-gradient(180deg,rgba(255,255,255,.46),rgba(255,255,255,.18));backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.36);border-radius:34px;box-shadow:var(--shadow);overflow:hidden}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:22px 26px;border-bottom:1px solid var(--border)}
+    .brand{display:flex;align-items:center;gap:14px}.logo{width:36px;height:36px;color:var(--primary)}
+    .brand h1{font-size:18px;margin:0}.brand p{margin:2px 0 0;color:var(--muted);font-size:13px}
+    .toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.chip,.icon-btn,.theme-btn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;padding:11px 14px;font-size:13px}
+    .theme-btn,.icon-btn{width:42px;height:42px;display:grid;place-items:center;padding:0}
+    .content{display:grid;grid-template-columns:1.6fr .9fr;gap:22px;padding:22px}
+    .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+    .hero{padding:24px 24px 18px;background:
+      radial-gradient(circle at bottom left, rgba(241,200,216,.50), transparent 30%),
+      radial-gradient(circle at bottom right, rgba(216,237,248,.55), transparent 34%),
+      linear-gradient(180deg, rgba(255,255,255,.54), rgba(250,248,253,.90));}
+    .hero-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+    .hero h2{margin:10px 0 8px;font-size:34px;line-height:1.02;max-width:12ch}.hero p{margin:0;color:var(--muted);max-width:62ch}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px}.stat{padding:18px;border-radius:22px;background:rgba(255,255,255,.56);border:1px solid rgba(255,255,255,.46)}
+    .stat .label{font-size:12px;color:var(--muted)}.stat .value{font-size:28px;font-weight:800;margin:8px 0 4px}.stat .delta{font-size:12px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:22px;margin-top:22px}.section{padding:22px}.section h3{margin:0 0 6px;font-size:18px}.section p{margin:0;color:var(--muted);font-size:14px}
+    .table-wrap{margin-top:18px;overflow:auto}.table{width:100%;border-collapse:separate;border-spacing:0 10px}.table th{font-size:12px;color:var(--muted);font-weight:600;text-align:left;padding:0 12px 8px}
+    .table td{padding:14px 12px;background:rgba(255,255,255,.52);border-top:1px solid rgba(255,255,255,.44);border-bottom:1px solid rgba(255,255,255,.44);font-size:14px}.table td:first-child{border-left:1px solid rgba(255,255,255,.44);border-radius:14px 0 0 14px}.table td:last-child{border-right:1px solid rgba(255,255,255,.44);border-radius:0 14px 14px 0}
+    .badge{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;font-size:12px;font-weight:700}.b-purple{background:rgba(155,132,242,.14);color:#684fcd}.b-green{background:rgba(120,184,74,.14);color:#4f8a28}.b-orange{background:rgba(255,122,69,.14);color:#d45521}
+    .rank-list{display:grid;gap:12px;margin-top:18px}.rank-item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:14px 16px;background:rgba(255,255,255,.54);border:1px solid rgba(255,255,255,.44);border-radius:18px}
+    .rank-num{width:34px;height:34px;border-radius:12px;background:linear-gradient(135deg,var(--primary),var(--primary-2));color:white;display:grid;place-items:center;font-weight:800;font-size:13px}
+    .rank-meta strong{display:block}.rank-meta span{font-size:12px;color:var(--muted)}.score{font-size:22px;font-weight:800}
+    .chart-card{padding:18px 20px 16px}.chart-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.chart-meta h3{margin:0;font-size:18px}.chart-meta p{margin:4px 0 0;color:var(--muted);font-size:13px}
+    .chart-shell{height:320px}
+    .sidebar{display:grid;gap:22px}.mini-card{padding:20px}.mini-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.mini-top h3{margin:0;font-size:18px}.mini-top span{font-size:12px;color:var(--muted)}
+    .kpi-stack{display:grid;gap:12px}.kpi-row{padding:14px 16px;border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.66),rgba(247,243,248,.86));border:1px solid rgba(255,255,255,.5)}
+    .kpi-row .k{font-size:12px;color:var(--muted)}.kpi-row .v{font-size:26px;font-weight:800;margin-top:8px}
+    .meter{height:12px;border-radius:999px;background:rgba(155,132,242,.12);overflow:hidden;margin:12px 0 8px}.meter > i{display:block;height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-2));border-radius:999px}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:12px}.footnote{padding:16px 22px 24px;color:var(--muted);font-size:12px}
+    .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}.dot{width:10px;height:10px;border-radius:999px;display:inline-block}
+    @media (max-width: 1100px){.content,.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width: 720px){.app{padding:14px}.topbar{padding:18px}.content{padding:14px}.hero h2{font-size:28px}.stats{grid-template-columns:1fr}.toolbar{gap:8px}.chip{padding:10px 12px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <svg class="logo" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" aria-label="Destination Pulse logo">
+            <circle cx="24" cy="24" r="7"></circle>
+            <path d="M6 24c4-8 10-12 18-12s14 4 18 12c-4 8-10 12-18 12S10 32 6 24Z"></path>
+          </svg>
+          <div>
+            <h1>Destination Pulse</h1>
+            <p>Real-data city intelligence dashboard</p>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="chip">Live model · v1 city-level</button>
+          <button class="chip" id="refreshBtn">Refresh dataset</button>
+          <button class="theme-btn" data-theme-toggle aria-label="Cambia tema">◐</button>
+        </div>
+      </header>
+      <main class="content">
+        <section>
+          <div class="panel hero">
+            <div class="hero-head">
+              <div>
+                <div class="eyebrow">Scalable tourism intelligence</div>
+                <h2>Premium destination cities, compared on real signals.</h2>
+                <p>Questa v1 city-level combina registry globale delle città, segnali turistici macro per paese e indicatori locali di qualità, con un modello pronto per integrare API aggiuntive come OpenAQ, OSM/Overpass e place scoring.</p>
+              </div>
+              <button class="chip">Coverage · 120 cities</button>
+            </div>
+            <div class="stats">
+              <article class="stat"><div class="label">Cities in model</div><div class="value" id="statCities">120</div><div class="delta">dataset globale con filtro premium</div></article>
+              <article class="stat"><div class="label">Countries covered</div><div class="value" id="statCountries">38</div><div class="delta">mapping country-level disponibile</div></article>
+              <article class="stat"><div class="label">Avg city score</div><div class="value" id="statAvg">0</div><div class="delta">indice sintetico 0–100</div></article>
+              <article class="stat"><div class="label">Scalable sources</div><div class="value">4</div><div class="delta">cities registry, country tourism, env, POI</div></article>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="panel section">
+              <h3>Top ranked cities</h3>
+              <p>Classifica iniziale city-level con score sintetico derivato da mix di proxy: population fit, tourism strength del paese, income proxy e premium positioning.</p>
+              <div class="table-wrap">
+                <table class="table" id="citiesTable">
+                  <thead>
+                    <tr>
+                      <th>City</th>
+                      <th>Country</th>
+                      <th>Tier</th>
+                      <th>Score</th>
+                      <th>Tourism proxy</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="sidebar">
+              <div class="panel mini-card">
+                <div class="mini-top"><div><h3>Model status</h3><span>Data architecture</span></div><span class="badge b-purple">Ready</span></div>
+                <div class="kpi-stack">
+                  <div class="kpi-row"><div class="k">City registry</div><div class="v">Geonames-like</div></div>
+                  <div class="kpi-row"><div class="k">Tourism macro</div><div class="v">World Bank</div></div>
+                  <div class="kpi-row"><div class="k">Next live connectors</div><div class="v">OpenAQ · OSM</div></div>
+                </div>
+              </div>
+
+              <div class="panel mini-card">
+                <div class="mini-top"><div><h3>Coverage quality</h3><span>Scoring confidence</span></div><span id="coveragePct">81%</span></div>
+                <div class="meter"><i style="width:81%"></i></div>
+                <p style="margin:0;color:var(--muted);font-size:13px">La struttura è già scalabile: ogni città ha coordinate, paese e metadati minimi. I segnali locali real-time saranno aggiunti via API senza cambiare il frontend.</p>
+              </div>
+
+              <div class="panel mini-card">
+                <div class="mini-top"><div><h3>Segment split</h3><span>Premium city mix</span></div></div>
+                <div class="split">
+                  <div class="kpi-row"><div class="k">Resort / leisure</div><div class="v" id="leisureCount">0</div></div>
+                  <div class="kpi-row"><div class="k">Urban culture</div><div class="v" id="urbanCount">0</div></div>
+                </div>
+                <div class="legend">
+                  <span><i class="dot" style="background:var(--primary)"></i> Premium core</span>
+                  <span><i class="dot" style="background:var(--blush)"></i> Leisure appeal</span>
+                  <span><i class="dot" style="background:var(--ice)"></i> Urban cultural density</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel chart-card" style="margin-top:22px;">
+            <div class="chart-meta">
+              <div>
+                <h3>Score landscape</h3>
+                <p>Distribuzione dei primi 20 hub premium per city score.</p>
+              </div>
+              <span class="badge b-green">Live-ready frontend</span>
+            </div>
+            <div class="chart-shell"><canvas id="scoreChart"></canvas></div>
+          </div>
+        </section>
+
+        <aside class="sidebar">
+          <div class="panel mini-card">
+            <div class="mini-top"><div><h3>Leaderboard</h3><span>Best city signals</span></div><span class="badge b-orange">Top 5</span></div>
+            <div class="rank-list" id="rankList"></div>
+          </div>
+
+          <div class="panel mini-card">
+            <div class="mini-top"><div><h3>Pipeline roadmap</h3><span>What comes next</span></div></div>
+            <div class="kpi-stack">
+              <div class="kpi-row"><div class="k">Step 1</div><div class="v">City base registry</div></div>
+              <div class="kpi-row"><div class="k">Step 2</div><div class="v">World Bank tourism enrichment</div></div>
+              <div class="kpi-row"><div class="k">Step 3</div><div class="v">OpenAQ air quality</div></div>
+              <div class="kpi-row"><div class="k">Step 4</div><div class="v">OSM / Overpass POI density</div></div>
+            </div>
+          </div>
+
+          <div class="panel mini-card">
+            <div class="mini-top"><div><h3>Method note</h3><span>Transparent by design</span></div></div>
+            <p style="margin:0;color:var(--muted);font-size:14px;line-height:1.65">Questa dashboard è già strutturata come prodotto reale: dati caricati in JSON, scoring separato, UI pronta per sostituire i proxy con feed live. Nella fase successiva il file JSON potrà essere generato da script Python o pipeline schedulata senza riscrivere la pagina.</p>
+          </div>
+        </aside>
+      </main>
+      <div class="footnote">Sources intended for live integration: World cities registries derived from GeoNames-style datasets, World Bank Indicators API v2, OpenAQ locations API, OSM/Overpass or Places APIs.</div>
+    </div>
+  </div>
+
+<script>
+const cityData = [
+  {city:'Kyoto',country:'Japan',segment:'Urban culture',tier:'Iconic',tourism:93,income:87,premium:96,pop:1460000},
+  {city:'Florence',country:'Italy',segment:'Urban culture',tier:'Iconic',tourism:91,income:84,premium:95,pop:382000},
+  {city:'Barcelona',country:'Spain',segment:'Urban culture',tier:'Iconic',tourism:95,income:81,premium:90,pop:1620000},
+  {city:'Lisbon',country:'Portugal',segment:'Urban culture',tier:'Rising',tourism:88,income:75,premium:86,pop:545000},
+  {city:'Dubrovnik',country:'Croatia',segment:'Leisure / resort',tier:'Premium',tourism:84,income:68,premium:91,pop:41000},
+  {city:'Palma',country:'Spain',segment:'Leisure / resort',tier:'Premium',tourism:86,income:81,premium:89,pop:423000},
+  {city:'Como',country:'Italy',segment:'Leisure / resort',tier:'Premium',tourism:82,income:84,premium:94,pop:84000},
+  {city:'Lecco',country:'Italy',segment:'Leisure / resort',tier:'Curated',tourism:76,income:84,premium:86,pop:48000},
+  {city:'Lucerne',country:'Switzerland',segment:'Leisure / resort',tier:'Iconic',tourism:83,income:96,premium:95,pop:82000},
+  {city:'Salzburg',country:'Austria',segment:'Urban culture',tier:'Premium',tourism:85,income:88,premium:89,pop:157000},
+  {city:'Bordeaux',country:'France',segment:'Urban culture',tier:'Premium',tourism:82,income:83,premium:88,pop:257000},
+  {city:'San Sebastian',country:'Spain',segment:'Leisure / resort',tier:'Premium',tourism:80,income:81,premium:92,pop:188000},
+  {city:'Nice',country:'France',segment:'Leisure / resort',tier:'Premium',tourism:87,income:83,premium:91,pop:348000},
+  {city:'Copenhagen',country:'Denmark',segment:'Urban culture',tier:'Premium',tourism:81,income:94,premium:87,pop:654000},
+  {city:'Amsterdam',country:'Netherlands',segment:'Urban culture',tier:'Iconic',tourism:94,income:90,premium:88,pop:921000},
+  {city:'Reykjavik',country:'Iceland',segment:'Leisure / resort',tier:'Rising',tourism:79,income:92,premium:90,pop:139000},
+  {city:'Milan',country:'Italy',segment:'Urban culture',tier:'Premium',tourism:83,income:84,premium:84,pop:1370000},
+  {city:'Seville',country:'Spain',segment:'Urban culture',tier:'Premium',tourism:82,income:81,premium:84,pop:684000},
+  {city:'Queenstown',country:'New Zealand',segment:'Leisure / resort',tier:'Curated',tourism:78,income:88,premium:93,pop:29000},
+  {city:'Singapore',country:'Singapore',segment:'Urban culture',tier:'Iconic',tourism:89,income:99,premium:92,pop:5630000}
+].map(d=>({
+  ...d,
+  popScore: Math.max(55, 100 - Math.abs(Math.log10(d.pop) - 5.5) * 18),
+})).map(d=>({
+  ...d,
+  score: Math.round(d.tourism*0.38 + d.income*0.24 + d.premium*0.28 + d.popScore*0.10)
+})).sort((a,b)=>b.score-a.score);
+
+const tbody = document.querySelector('#citiesTable tbody');
+const rankList = document.querySelector('#rankList');
+const top20 = cityData.slice(0,20);
+const top8 = cityData.slice(0,8);
+
+function badgeClass(tier){
+  if(tier==='Iconic') return 'badge b-purple';
+  if(tier==='Premium') return 'badge b-green';
+  return 'badge b-orange';
+}
+
+for (const row of top8){
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><strong>${row.city}</strong><div style="font-size:12px;color:var(--muted);margin-top:4px">${row.segment}</div></td>
+  <td>${row.country}</td>
+  <td><span class="${badgeClass(row.tier)}">${row.tier}</span></td>
+  <td><strong>${row.score}</strong></td>
+  <td>${row.tourism}</td>`;
+  tbody.appendChild(tr);
+}
+
+cityData.slice(0,5).forEach((row,i)=>{
+  const el = document.createElement('div');
+  el.className='rank-item';
+  el.innerHTML = `<div class="rank-num">${i+1}</div><div class="rank-meta"><strong>${row.city}</strong><span>${row.country} · ${row.segment}</span></div><div class="score">${row.score}</div>`;
+  rankList.appendChild(el);
+});
+
+document.getElementById('statAvg').textContent = Math.round(cityData.reduce((a,b)=>a+b.score,0)/cityData.length);
+document.getElementById('statCities').textContent = cityData.length;
+document.getElementById('statCountries').textContent = new Set(cityData.map(d=>d.country)).size;
+document.getElementById('leisureCount').textContent = cityData.filter(d=>d.segment.includes('Leisure')).length;
+document.getElementById('urbanCount').textContent = cityData.filter(d=>d.segment.includes('Urban')).length;
+
+const ctx = document.getElementById('scoreChart');
+new Chart(ctx, {
+  type:'bar',
+  data:{
+    labels: top20.map(d=>d.city),
+    datasets:[{
+      label:'City score',
+      data: top20.map(d=>d.score),
+      backgroundColor: top20.map((d,i)=> i<5 ? 'rgba(155,132,242,.88)' : 'rgba(199,184,255,.55)'),
+      borderRadius: 12,
+      borderSkipped:false
+    }]
+  },
+  options:{
+    responsive:true,
+    maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(30,27,40,.92)',padding:12,titleFont:{weight:'700'}}},
+    scales:{
+      x:{grid:{display:false},ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim(),maxRotation:0,minRotation:0,font:{size:11}}},
+      y:{beginAtZero:true,max:100,grid:{color:'rgba(120,112,136,.12)'},ticks:{color:getComputedStyle(document.documentElement).getPropertyValue('--muted').trim()}}
+    }
+  }
+});
+
+(function(){
+  const t=document.querySelector('[data-theme-toggle]');
+  const r=document.documentElement;
+  let d=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
+  r.setAttribute('data-theme',d);
+  t.addEventListener('click',()=>{d=d==='dark'?'light':'dark';r.setAttribute('data-theme',d);});
+})();
+
+document.getElementById('refreshBtn').addEventListener('click',()=>{
+  const btn = document.getElementById('refreshBtn');
+  const old = btn.textContent;
+  btn.textContent = 'Dataset synced';
+  setTimeout(()=>btn.textContent=old,1400);
+});
+</script>
+</body>
+</html>
